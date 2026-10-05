@@ -1,0 +1,11 @@
+LWSM — application installable (PWA)
+
+1) Publier ce dossier en HTTPS (obligatoire pour l'installation) :
+   - Cloudflare Pages : Workers & Pages > Create > Pages > "Upload assets" > glisser le dossier.
+   - ou Netlify Drop (app.netlify.com/drop), ou GitHub Pages.
+2) Ouvrir l'adresse obtenue sur l'appareil :
+   - Android / Chrome : menu ⋮ > "Installer l'application".
+   - iPhone / iPad (Safari) : Partager > "Sur l'écran d'accueil".
+   - Ordinateur (Chrome/Edge) : icône d'installation dans la barre d'adresse.
+3) Au premier lancement, coller le lien /exec de l'application Apps Script.
+   (Ou le mettre une fois pour toutes dans DEFAULT_APP_URL, dans index.html.)

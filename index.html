@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>LWSM</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#4a1469">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LWSM">
+<style>
+  html,body{margin:0;height:100%;background:#4a1469;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#fff;overflow:hidden}
+  #app{position:fixed;inset:0;width:100%;height:100%;border:0;background:#fff;display:none;
+       padding-top:env(safe-area-inset-top);box-sizing:border-box}
+  .screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;
+          background:radial-gradient(circle at 50% 0%,#7b2cb0,#4a1469 60%,#2a0b3f)}
+  .screen img{width:96px;height:96px;border-radius:22px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+  .screen h1{margin:0;font-size:22px;font-weight:700} .screen p{margin:0;opacity:.85;font-size:14px;max-width:440px;line-height:1.45}
+  input{width:min(92vw,460px);padding:14px;border-radius:12px;border:2px solid #fdf3c0;font-size:16px;text-align:center}
+  button{padding:13px 22px;border:0;border-radius:12px;background:#fdf3c0;color:#4a1469;font-weight:700;font-size:15px;cursor:pointer}
+  .ghost{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.5)}
+  #offline{position:fixed;left:0;right:0;top:0;padding:8px;background:#ef6c00;color:#fff;text-align:center;font-size:13px;font-weight:700;display:none;z-index:5;padding-top:calc(8px + env(safe-area-inset-top))}
+  #loading{z-index:3}
+  #err{color:#ffd0d0;font-size:13px;min-height:16px}
+</style>
+</head>
+<body>
+<div id="offline">📴 Hors ligne — reconnexion en cours…</div>
+
+<div id="setup" class="screen" style="display:none">
+  <img src="icons/icon-192.png" alt="">
+  <h1>Living Word School of Ministry</h1>
+  <p>Collez le lien de votre application web Apps Script (celui qui se termine par <b>/exec</b>). Il sera mémorisé sur cet appareil.</p>
+  <input id="urlIn" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off">
+  <div id="err"></div>
+  <button onclick="saveUrl()">Enregistrer et ouvrir</button>
+</div>
+
+<div id="loading" class="screen" style="display:none">
+  <img src="icons/icon-192.png" alt="">
+  <h1>Chargement…</h1>
+  <p id="slow" style="display:none">Le chargement est long. Vérifiez la connexion internet.</p>
+  <button id="chg" class="ghost" style="display:none" onclick="changeUrl()">Changer le lien</button>
+</div>
+
+<iframe id="app" title="LWSM"
+  allow="camera *; microphone *; autoplay *; fullscreen *; clipboard-write *; geolocation *"
+  allowfullscreen></iframe>
+
+<script>
+  // Optionnel : mettez le lien /exec ici pour ne jamais voir l'écran de configuration.
+  const DEFAULT_APP_URL = "";
+  const KEY = "lwsm_app_url";
+  const $ = id => document.getElementById(id);
+
+  function getUrl() { try { return localStorage.getItem(KEY) || DEFAULT_APP_URL; } catch (e) { return DEFAULT_APP_URL; } }
+  function normalize(u) {
+    u = String(u || "").trim();
+    if (!/^https:\/\/script\.google\.com\/.+\/exec/.test(u) && !/^https:\/\/script\.google\.com\/a\/macros\/.+\/exec/.test(u)) return "";
+    if (!/[?&]page=/.test(u)) u += (u.indexOf("?") === -1 ? "?" : "&") + "page=admin"; // ouvre la console admin
+    return u;
+  }
+  function saveUrl() {
+    const u = normalize($("urlIn").value);
+    if (!u) { $("err").innerText = "Lien invalide : il doit commencer par https://script.google.com/ et finir par /exec"; return; }
+    try { localStorage.setItem(KEY, u); } catch (e) {}
+    start();
+  }
+  function changeUrl() { try { localStorage.removeItem(KEY); } catch (e) {} location.reload(); }
+
+  function start() {
+    const u = getUrl();
+    if (!u) { $("setup").style.display = "flex"; $("loading").style.display = "none"; return; }
+    $("setup").style.display = "none";
+    $("loading").style.display = "flex";
+    const f = $("app");
+    f.onload = () => { $("loading").style.display = "none"; f.style.display = "block"; clearTimeout(slowT); };
+    f.src = u;
+    const slowT = setTimeout(() => { $("slow").style.display = "block"; $("chg").style.display = "inline-block"; }, 12000);
+  }
+
+  // Bandeau hors-ligne + rechargement automatique au retour du réseau
+  function net() { $("offline").style.display = navigator.onLine ? "none" : "block"; }
+  addEventListener("online", () => { net(); if ($("app").style.display !== "block") start(); });
+  addEventListener("offline", net); net();
+
+  // Garde l'écran allumé (utile pour le kiosque)
+  let wl = null;
+  async function keepAwake() { try { if ("wakeLock" in navigator) wl = await navigator.wakeLock.request("screen"); } catch (e) {} }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") keepAwake(); });
+  keepAwake();
+
+  if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  start();
+</script>
+</body>
+</html>

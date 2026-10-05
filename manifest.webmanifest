@@ -1,0 +1,17 @@
+{
+  "name": "Living Word School of Ministry",
+  "short_name": "LWSM",
+  "description": "Administration et kiosque de présence — Living Word School of Ministry",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#4a1469",
+  "theme_color": "#4a1469",
+  "lang": "fr",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
