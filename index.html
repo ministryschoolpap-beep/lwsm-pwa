@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -29,21 +29,21 @@
 </style>
 </head>
 <body>
-<div id="offline">ðŸ“´ Hors ligne â€” reconnexion en coursâ€¦</div>
+<div id="offline">📴 Hors ligne — reconnexion en cours…</div>
 
 <div id="setup" class="screen" style="display:none">
   <img src="icons/icon-192.png" alt="">
   <h1>Living Word School of Ministry</h1>
-  <p>Collez le lien de votre application web Apps Script (celui qui se termine par <b>/exec</b>). Il sera mÃ©morisÃ© sur cet appareil.</p>
-  <input id="urlIn" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/â€¦/exec" autocomplete="off">
+  <p>Collez le lien de votre application web Apps Script (celui qui se termine par <b>/exec</b>). Il sera mémorisé sur cet appareil.</p>
+  <input id="urlIn" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off">
   <div id="err"></div>
   <button onclick="saveUrl()">Enregistrer et ouvrir</button>
 </div>
 
 <div id="loading" class="screen" style="display:none">
   <img src="icons/icon-192.png" alt="">
-  <h1>Chargementâ€¦</h1>
-  <p id="slow" style="display:none">Le chargement est long. VÃ©rifiez la connexion internet.</p>
+  <h1>Chargement…</h1>
+  <p id="slow" style="display:none">Le chargement est long. Vérifiez la connexion internet.</p>
   <button id="chg" class="ghost" style="display:none" onclick="changeUrl()">Changer le lien</button>
 </div>
 
@@ -52,7 +52,7 @@
   allowfullscreen></iframe>
 
 <script>
-  // Optionnel : mettez le lien /exec ici pour ne jamais voir l'Ã©cran de configuration.
+  // Optionnel : mettez le lien /exec ici pour ne jamais voir l'écran de configuration.
   const DEFAULT_APP_URL = "https://script.google.com/macros/s/AKfycbxUMi8xcYXSCGvTGD1T7EGqvKu4AxsOQY7s14xwxY3_E2H6cyDMd2XXJbV3fOZ_coJybw/exec?page=admin";
   const KEY = "lwsm_app_url";
   const $ = id => document.getElementById(id);
@@ -83,12 +83,12 @@
     const slowT = setTimeout(() => { $("slow").style.display = "block"; $("chg").style.display = "inline-block"; }, 12000);
   }
 
-  // Bandeau hors-ligne + rechargement automatique au retour du rÃ©seau
+  // Bandeau hors-ligne + rechargement automatique au retour du réseau
   function net() { $("offline").style.display = navigator.onLine ? "none" : "block"; }
   addEventListener("online", () => { net(); if ($("app").style.display !== "block") start(); });
   addEventListener("offline", net); net();
 
-  // Garde l'Ã©cran allumÃ© (utile pour le kiosque)
+  // Garde l'écran allumé (utile pour le kiosque)
   let wl = null;
   async function keepAwake() { try { if ("wakeLock" in navigator) wl = await navigator.wakeLock.request("screen"); } catch (e) {} }
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") keepAwake(); });
@@ -99,4 +99,3 @@
 </script>
 </body>
 </html>
-
