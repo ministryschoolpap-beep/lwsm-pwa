@@ -1,6 +1,6 @@
-// Service worker minimal : met l'enveloppe de l'app en cache (démarrage instantané,
-// écran hors-ligne). L'application Apps Script elle-même reste toujours chargée en ligne.
-const CACHE = "lwsm-shell-v1";
+﻿// Service worker minimal : met l'enveloppe de l'app en cache (dÃ©marrage instantanÃ©,
+// Ã©cran hors-ligne). L'application Apps Script elle-mÃªme reste toujours chargÃ©e en ligne.
+const CACHE = "lwsm-shell-v2";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/maskable-512.png", "./icons/apple-touch-icon.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener("activate", e => {
@@ -14,3 +14,4 @@ self.addEventListener("fetch", e => {
       .catch(() => caches.match(r).then(m => m || caches.match("./index.html")))
   );
 });
+
