@@ -171,6 +171,17 @@
   setInterval(checkVersion, 5 * 60 * 1000);
   if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
 
+  // ── Navigation demandée par la page Apps Script (ex. connexion admin) : on reste dans le cadre, en plein écran ──
+  addEventListener("message", ev => {
+    const d = ev.data;
+    if (!d || d.type !== "lwsm-navigate" || typeof d.url !== "string") return;
+    if (!/^https:\/\/([a-z0-9-]+\.)*(googleusercontent|google)\.com$/.test(ev.origin)) return;   // vient bien de Google
+    const base = String(getUrl() || "").split("?")[0];
+    if (!base || d.url.split("?")[0] !== base) return;                                              // même application seulement
+    $("loading").style.display = "flex";
+    $("app").src = d.url;
+  });
+
   // ── Garde l'écran allumé (utile pour le kiosque) ──
   let wl = null;
   async function keepAwake() { try { if ("wakeLock" in navigator) wl = await navigator.wakeLock.request("screen"); } catch (e) {} }
