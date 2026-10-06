@@ -141,27 +141,35 @@
   };
   $("sheetClose").onclick = () => { $("sheet").style.display = "none"; };
 
-  // ── Mise à jour : propose à l'utilisateur de recharger la nouvelle version ──
-  let reloading = false;
-  function offerUpdate(worker) {
-    showBar("updateBar", true);
-    $("updateBtn").onclick = () => { $("updateBtn").disabled = true; $("updateBtn").innerText = "Mise à jour…"; worker.postMessage("SKIP_WAITING"); };
+  // ── Mise à jour : détection dynamique via version.json (fonctionne aussi dans le navigateur, sans installation) ──
+  // Le bandeau n'apparaît que si la version publiée est différente de celle chargée sur cet appareil.
+  let loadedVersion = null, checking = false;
+  async function remoteVersion() {
+    try {
+      const r = await fetch("version.json?t=" + Date.now(), { cache: "no-store" });
+      if (!r.ok) return null;
+      const j = await r.json();
+      return j && j.version ? String(j.version) : null;
+    } catch (e) { return null; }
   }
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.addEventListener("controllerchange", () => { if (reloading) return; reloading = true; location.reload(); });
-    addEventListener("load", () => {
-      navigator.serviceWorker.register("sw.js").then(reg => {
-        if (reg.waiting && navigator.serviceWorker.controller) offerUpdate(reg.waiting);
-        reg.addEventListener("updatefound", () => {
-          const nw = reg.installing; if (!nw) return;
-          nw.addEventListener("statechange", () => { if (nw.state === "installed" && navigator.serviceWorker.controller) offerUpdate(nw); });
-        });
-        const check = () => reg.update().catch(() => {});
-        document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
-        setInterval(check, 30 * 60 * 1000);
-      }).catch(() => {});
-    });
+  async function checkVersion() {
+    if (checking || !navigator.onLine) return;
+    checking = true; const v = await remoteVersion(); checking = false;
+    if (!v) return;
+    if (loadedVersion === null) { loadedVersion = v; return; }   // 1re lecture = version chargée
+    showBar("updateBar", v !== loadedVersion);
   }
+  $("updateBtn").onclick = async () => {
+    $("updateBtn").disabled = true; $("updateBtn").innerText = "Mise à jour…";
+    try { const rs = await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r => r.unregister())); } catch (e) {}
+    try { const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); } catch (e) {}
+    location.href = location.pathname + "?u=" + Date.now();
+  };
+  checkVersion();
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkVersion(); });
+  addEventListener("online", checkVersion);
+  setInterval(checkVersion, 5 * 60 * 1000);
+  if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
 
   // ── Garde l'écran allumé (utile pour le kiosque) ──
   let wl = null;
