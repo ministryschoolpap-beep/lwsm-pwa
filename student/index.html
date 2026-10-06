@@ -176,8 +176,7 @@
     const d = ev.data;
     if (!d || d.type !== "lwsm-navigate" || typeof d.url !== "string") return;
     if (!/^https:\/\/([a-z0-9-]+\.)*(googleusercontent|google)\.com$/.test(ev.origin)) return;   // vient bien de Google
-    const base = String(getUrl() || "").split("?")[0];
-    if (!base || d.url.split("?")[0] !== base) return;                                              // même application seulement
+    if (!/^https:\/\/script\.google\.com\/.+\/exec(\?|$)/.test(d.url)) return;                          // adresse d'application Apps Script uniquement
     $("loading").style.display = "flex";
     $("app").src = d.url;
   });
