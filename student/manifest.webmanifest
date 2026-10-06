@@ -1,17 +1,33 @@
 {
-  "name": "LWSM Etudiants",
-  "short_name": "Etudiants",
-  "description": "Administration et kiosque de présence — Living Word School of Ministry",
+  "id": "/lwsm-pwa/student/index.html",
+  "name": "Portail Etudiant LWSM",
+  "short_name": "Portail LWSM",
+  "description": "Portail étudiant — Living Word School of Ministry",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#4a1469",
-  "theme_color": "#4a1469",
+  "background_color": "#14264f",
+  "theme_color": "#14264f",
   "lang": "fr",
   "icons": [
-    { "src": "icons/icon-192.png?v=4", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-512.png?v=4", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icons/maskable-512.png?v=4", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "icons/icon-192.png?v=4",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png?v=4",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/maskable-512.png?v=4",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }

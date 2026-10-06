@@ -2,38 +2,60 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<title>LWSM Etudiants</title>
+<title>Portail Etudiant LWSM</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#4a1469">
+<meta name="theme-color" content="#14264f">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png?v=4">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=4">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="LWSM">
+<meta name="apple-mobile-web-app-title" content="Portail LWSM">
 <style>
-  html,body{margin:0;height:100%;background:#4a1469;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#fff;overflow:hidden}
-  #app{position:fixed;inset:0;width:100%;height:100%;border:0;background:#fff;display:none;
-       padding-top:env(safe-area-inset-top);box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#14264f;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#fff;overflow:hidden}
+  #app{position:fixed;left:0;right:0;top:var(--bar-h,0px);width:100%;height:calc(100% - var(--bar-h,0px));border:0;background:#fff;display:none;
+       padding-top:var(--app-pad,env(safe-area-inset-top));box-sizing:border-box}
   .screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;
-          background:radial-gradient(circle at 50% 0%,#7b2cb0,#4a1469 60%,#2a0b3f)}
+          background:radial-gradient(circle at 50% 0%,#1f4e9c,#14264f 60%,#0b1530)}
   .screen img{width:96px;height:96px;border-radius:22px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
   .screen h1{margin:0;font-size:22px;font-weight:700} .screen p{margin:0;opacity:.85;font-size:14px;max-width:440px;line-height:1.45}
   input{width:min(92vw,460px);padding:14px;border-radius:12px;border:2px solid #fdf3c0;font-size:16px;text-align:center}
-  button{padding:13px 22px;border:0;border-radius:12px;background:#fdf3c0;color:#4a1469;font-weight:700;font-size:15px;cursor:pointer}
+  button{padding:13px 22px;border:0;border-radius:12px;background:#fdf3c0;color:#14264f;font-weight:700;font-size:15px;cursor:pointer}
   .ghost{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.5)}
-  #offline{position:fixed;left:0;right:0;top:0;padding:8px;background:#ef6c00;color:#fff;text-align:center;font-size:13px;font-weight:700;display:none;z-index:5;padding-top:calc(8px + env(safe-area-inset-top))}
   #loading{z-index:3}
   #err{color:#ffd0d0;font-size:13px;min-height:16px}
+  /* bandeaux (hors-ligne / installation / mise à jour) */
+  #bars{position:fixed;left:0;right:0;top:0;z-index:10;padding-top:env(safe-area-inset-top);background:#14264f}
+  .bar{display:none;align-items:center;justify-content:center;gap:12px;padding:8px 12px;font-size:13px;line-height:1.3;text-align:left}
+  .bar span{flex:1;max-width:520px}
+  .bar button{padding:8px 16px;border-radius:9px;font-size:13px;white-space:nowrap;flex:0 0 auto}
+  #offline{background:#ef6c00;font-weight:700;justify-content:center;text-align:center}
+  #installBar{background:#14264f;border-bottom:2px solid #c9a227}
+  #updateBar{background:#c9a227;color:#1c2438}
+  #updateBar button{background:#fff;color:#14264f}
+  #sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center}
+  #sheet .card{background:#fff;color:#1c2438;width:min(100%,460px);border-radius:18px 18px 0 0;padding:22px 22px calc(22px + env(safe-area-inset-bottom));text-align:left}
+  #sheet h2{margin:0 0 10px;font-size:18px} #sheet ol{margin:0 0 16px;padding-left:20px;line-height:1.7;font-size:14.5px}
+  #sheet button{width:100%;background:#14264f;color:#fff}
 </style>
 </head>
 <body>
-<div id="offline">📴 Hors ligne — reconnexion en cours…</div>
+<div id="bars">
+  <div id="offline" class="bar">📴 Hors ligne — reconnexion en cours…</div>
+  <div id="updateBar" class="bar"><span>🔄 Une nouvelle version est disponible.</span><button id="updateBtn">Mettre à jour</button></div>
+  <div id="installBar" class="bar"><span>📲 Installez <b>Portail Etudiant LWSM</b> sur cet appareil.</span><button id="installBtn">Installer</button></div>
+</div>
+
+<div id="sheet"><div class="card">
+  <h2>Installer Portail Etudiant LWSM</h2>
+  <ol id="sheetSteps"></ol>
+  <button id="sheetClose">J'ai compris</button>
+</div></div>
 
 <div id="setup" class="screen" style="display:none">
   <img src="icons/icon-192.png?v=4" alt="">
-  <h1>Living Word School of Ministry</h1>
+  <h1>Portail Etudiant LWSM</h1>
   <p>Collez le lien de votre application web Apps Script (celui qui se termine par <b>/exec</b>). Il sera mémorisé sur cet appareil.</p>
   <input id="urlIn" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off">
   <div id="err"></div>
@@ -47,21 +69,21 @@
   <button id="chg" class="ghost" style="display:none" onclick="changeUrl()">Changer le lien</button>
 </div>
 
-<iframe id="app" title="LWSM"
+<iframe id="app" title="Portail Etudiant LWSM"
   allow="camera *; microphone *; autoplay *; fullscreen *; clipboard-write *; geolocation *"
   allowfullscreen></iframe>
 
 <script>
-  // Optionnel : mettez le lien /exec ici pour ne jamais voir l'écran de configuration.
   const DEFAULT_APP_URL = "https://script.google.com/macros/s/AKfycbynTqujp5Pl2TyCd0WN1P5KI4e0liz4gvXsDkwe0H8Rtd5hsMGWTAYPbWC88H_vq3Xv/exec";
   const KEY = "lwsm_student_url";
+  const ADD_PAGE = "";          // "admin" pour la console admin ; vide = lien tel quel
   const $ = id => document.getElementById(id);
 
   function getUrl() { try { return localStorage.getItem(KEY) || DEFAULT_APP_URL; } catch (e) { return DEFAULT_APP_URL; } }
   function normalize(u) {
     u = String(u || "").trim();
     if (!/^https:\/\/script\.google\.com\/.+\/exec/.test(u) && !/^https:\/\/script\.google\.com\/a\/macros\/.+\/exec/.test(u)) return "";
-    if (false) u += (u.indexOf("?") === -1 ? "?" : "&") + "page=admin"; // ouvre la console admin
+    if (ADD_PAGE && !/[?&]page=/.test(u)) u += (u.indexOf("?") === -1 ? "?" : "&") + "page=" + ADD_PAGE;
     return u;
   }
   function saveUrl() {
@@ -83,18 +105,69 @@
     const slowT = setTimeout(() => { $("slow").style.display = "block"; $("chg").style.display = "inline-block"; }, 12000);
   }
 
-  // Bandeau hors-ligne + rechargement automatique au retour du réseau
-  function net() { $("offline").style.display = navigator.onLine ? "none" : "block"; }
+  // ── Hauteur des bandeaux : l'application s'affiche en dessous ──
+  function measureBars() {
+    const h = $("bars").offsetHeight;
+    const anyBar = ["offline", "updateBar", "installBar"].some(id => $(id).style.display === "flex");
+    document.documentElement.style.setProperty("--bar-h", anyBar ? h + "px" : "0px");
+    document.documentElement.style.setProperty("--app-pad", anyBar ? "0px" : "env(safe-area-inset-top)");
+  }
+  function showBar(id, on) { $(id).style.display = on ? "flex" : "none"; measureBars(); }
+  if ("ResizeObserver" in window) new ResizeObserver(measureBars).observe($("bars"));
+
+  // ── Hors-ligne ──
+  function net() { showBar("offline", !navigator.onLine); }
   addEventListener("online", () => { net(); if ($("app").style.display !== "block") start(); });
   addEventListener("offline", net); net();
 
-  // Garde l'écran allumé (utile pour le kiosque)
+  // ── Installation : le bandeau reste tant que l'app n'est pas installée ──
+  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  let deferred = null;
+  if (!standalone) {
+    addEventListener("beforeinstallprompt", e => { e.preventDefault(); deferred = e; showBar("installBar", true); });
+    if (isIOS) showBar("installBar", true);
+  }
+  addEventListener("appinstalled", () => { deferred = null; showBar("installBar", false); });
+  $("installBtn").onclick = async () => {
+    if (deferred) {
+      const ev = deferred; deferred = null;
+      try { ev.prompt(); const r = await ev.userChoice; if (r && r.outcome === "accepted") { showBar("installBar", false); return; } } catch (e) {}
+    }
+    $("sheetSteps").innerHTML = isIOS
+      ? "<li>Touchez le bouton <b>Partager</b> (carré avec une flèche) dans Safari.</li><li>Choisissez <b>Sur l'écran d'accueil</b>.</li><li>Touchez <b>Ajouter</b>.</li>"
+      : "<li>Ouvrez le menu du navigateur (<b>⋮</b> ou l'icône d'installation dans la barre d'adresse).</li><li>Choisissez <b>Installer l'application</b>.</li><li>Confirmez avec <b>Installer</b>.</li>";
+    $("sheet").style.display = "flex";
+  };
+  $("sheetClose").onclick = () => { $("sheet").style.display = "none"; };
+
+  // ── Mise à jour : propose à l'utilisateur de recharger la nouvelle version ──
+  let reloading = false;
+  function offerUpdate(worker) {
+    showBar("updateBar", true);
+    $("updateBtn").onclick = () => { $("updateBtn").disabled = true; $("updateBtn").innerText = "Mise à jour…"; worker.postMessage("SKIP_WAITING"); };
+  }
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.addEventListener("controllerchange", () => { if (reloading) return; reloading = true; location.reload(); });
+    addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").then(reg => {
+        if (reg.waiting && navigator.serviceWorker.controller) offerUpdate(reg.waiting);
+        reg.addEventListener("updatefound", () => {
+          const nw = reg.installing; if (!nw) return;
+          nw.addEventListener("statechange", () => { if (nw.state === "installed" && navigator.serviceWorker.controller) offerUpdate(nw); });
+        });
+        const check = () => reg.update().catch(() => {});
+        document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
+        setInterval(check, 30 * 60 * 1000);
+      }).catch(() => {});
+    });
+  }
+
+  // ── Garde l'écran allumé (utile pour le kiosque) ──
   let wl = null;
   async function keepAwake() { try { if ("wakeLock" in navigator) wl = await navigator.wakeLock.request("screen"); } catch (e) {} }
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") keepAwake(); });
   keepAwake();
-
-  if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
   start();
 </script>
 </body>
