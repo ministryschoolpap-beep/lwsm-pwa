@@ -110,10 +110,11 @@
   // ── Installation : le bandeau reste tant que l'app n'est pas installée ──
   const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isAndroid = /android/i.test(navigator.userAgent);
   let deferred = null;
   if (!standalone) {
     addEventListener("beforeinstallprompt", e => { e.preventDefault(); deferred = e; showBar("installBar", true); });
-    if (isIOS) showBar("installBar", true);
+    if (isIOS || isAndroid) showBar("installBar", true);
   }
   addEventListener("appinstalled", () => { deferred = null; showBar("installBar", false); });
   $("installBtn").onclick = async () => {
@@ -123,12 +124,14 @@
     }
     $("sheetSteps").innerHTML = isIOS
       ? "<li>Touchez le bouton <b>Partager</b> (carré avec une flèche) dans Safari.</li><li>Choisissez <b>Sur l'écran d'accueil</b>.</li><li>Touchez <b>Ajouter</b>.</li>"
+      : isAndroid
+      ? "<li>Ouvrez cette page dans Chrome à jour.</li><li>Dans le menu <b>⋮</b>, choisissez <b>Installer et créer un raccourci</b> ou <b>Ajouter à l’écran d’accueil</b>.</li><li>Choisissez <b>Installer</b>. Si l’installation est indisponible ou bloquée, choisissez <b>Créer un raccourci</b> si Chrome le propose.</li>"
       : "<li>Ouvrez le menu du navigateur (<b>⋮</b> ou l'icône d'installation dans la barre d'adresse).</li><li>Choisissez <b>Installer l'application</b>.</li><li>Confirmez avec <b>Installer</b>.</li>";
     $("sheet").style.display = "flex";
   };
   $("sheetClose").onclick = () => { $("sheet").style.display = "none"; };
 
-  const LOADED_VERSION = "20261118-5";
+  const LOADED_VERSION = "20261118-6";
   const worker = navigator.serviceWorker;
   const registration = worker ? worker.register("sw.js", { updateViaCache: "none" }).catch(() => null) : Promise.resolve(null);
   let checking = false;

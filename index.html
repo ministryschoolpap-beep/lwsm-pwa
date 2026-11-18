@@ -20,11 +20,9 @@
           background:radial-gradient(circle at 50% 0%,#7b2cb0,#4a1469 60%,#2a0b3f)}
   .screen img{width:96px;height:96px;border-radius:22px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
   .screen h1{margin:0;font-size:22px;font-weight:700} .screen p{margin:0;opacity:.85;font-size:14px;max-width:440px;line-height:1.45}
-  input{width:min(92vw,460px);padding:14px;border-radius:12px;border:2px solid #fdf3c0;font-size:16px;text-align:center}
   button{padding:13px 22px;border:0;border-radius:12px;background:#fdf3c0;color:#4a1469;font-weight:700;font-size:15px;cursor:pointer}
   .ghost{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.5)}
   #loading{z-index:3}
-  #err{color:#ffd0d0;font-size:13px;min-height:16px}
   /* bandeaux (hors-ligne / installation / mise à jour) */
   #bars{position:fixed;left:0;right:0;top:0;z-index:10;padding-top:env(safe-area-inset-top);background:#4a1469}
   .bar{display:none;align-items:center;justify-content:center;gap:12px;padding:8px 12px;font-size:13px;line-height:1.3;text-align:left}
@@ -43,12 +41,7 @@
 <body>
 <div id="bars">
   <div id="connectionBar" class="bar" style="display:flex;justify-content:flex-end;gap:8px">
-    <nav aria-label="Accès LWSM" style="display:flex;gap:8px;margin-right:auto">
-      <strong aria-current="page">Administration</strong>
-      <a href="./student/" style="color:inherit">Portail étudiant</a>
-    </nav>
-    <button id="changeLink" type="button">Changer le lien</button>
-    <a id="openDirect" target="_blank" rel="noopener noreferrer" style="color:inherit">Ouvrir dans le navigateur</a>
+    <a href="./student/" style="color:inherit">Portail étudiant</a>
   </div>
   <div id="offline" class="bar">📴 Hors ligne — reconnexion en cours…</div>
   <div id="updateBar" class="bar"><span>🔄 Une nouvelle version est disponible.</span><button id="updateBtn">Mettre à jour</button></div>
@@ -61,15 +54,6 @@
   <button id="sheetClose">J'ai compris</button>
 </div></div>
 
-<div id="setup" class="screen" style="display:none">
-  <img src="icons/icon-192.png?v=4" alt="">
-  <h1>LWSM</h1>
-  <p>Collez le lien de votre application web Apps Script (celui qui se termine par <b>/exec</b>). Il sera mémorisé sur cet appareil.</p>
-  <input id="urlIn" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off">
-  <div id="err" role="status"></div>
-  <button onclick="saveUrl()">Enregistrer et ouvrir</button>
-</div>
-
 <div id="offlineScreen" class="screen" style="display:none">
   <img src="icons/icon-192.png?v=4" alt="">
   <h1>Vous êtes hors ligne</h1>
@@ -81,7 +65,6 @@
   <img src="icons/icon-192.png?v=4" alt="">
   <h1>Chargement…</h1>
   <p id="slow" style="display:none">Le chargement est long. Vérifiez la connexion internet.</p>
-  <button id="chg" class="ghost" style="display:none" onclick="changeUrl()">Changer le lien</button>
 </div>
 
 <iframe id="app" title="LWSM"
@@ -90,58 +73,21 @@
 
 <script>
   const DEFAULT_APP_URL = "https://script.google.com/macros/s/AKfycbxUMi8xcYXSCGvTGD1T7EGqvKu4AxsOQY7s14xwxY3_E2H6cyDMd2XXJbV3fOZ_coJybw/exec?page=admin";
-  const KEY = "lwsm_app_url";
-  const ADD_PAGE = "admin";          // "admin" pour la console admin ; vide = lien tel quel
   const $ = id => document.getElementById(id);
 
-  function getUrl() { try { return localStorage.getItem(KEY) || DEFAULT_APP_URL; } catch (e) { return DEFAULT_APP_URL; } }
-  function normalize(value) {
-    try {
-      const url = new URL(String(value || "").trim());
-      if (url.origin !== "https://script.google.com" || url.username || url.password || !/\/macros\/s\/[^/]+\/exec\/?$/.test(url.pathname)) return "";
-      if (ADD_PAGE && !url.searchParams.has("page")) url.searchParams.set("page", ADD_PAGE);
-      return url.href;
-    } catch (error) { return ""; }
-  }
-  let editingLink = false;
-  function saveUrl() {
-    const url = normalize($("urlIn").value);
-    if (!url) { $("err").innerText = "Collez l’URL HTTPS du déploiement Apps Script qui se termine par /exec."; return; }
-    try { localStorage.setItem(KEY, url); } catch (error) { $("err").innerText = "Impossible de mémoriser le lien sur cet appareil."; return; }
-    editingLink = false;
-    start();
-  }
-  function changeUrl() {
-    editingLink = true;
-    $("loading").style.display = "none";
-    $("offlineScreen").style.display = "none";
-    $("app").style.display = "none";
-    $("setup").style.display = "flex";
-    $("urlIn").value = getUrl();
-    $("err").innerText = "";
-    $("urlIn").focus();
-  }
-  $("changeLink").onclick = changeUrl;
-
   function start() {
-    if (editingLink) return;
     const f = $("app");
-    const u = normalize(getUrl());
-    $("openDirect").hidden = !u;
-    if (u) $("openDirect").href = u;
     $("offlineScreen").style.display = navigator.onLine || f.style.display === "block" ? "none" : "flex";
     if (!navigator.onLine) { $("loading").style.display = "none"; return; }
-    if (!u) { $("setup").style.display = "flex"; $("loading").style.display = "none"; return; }
-    $("setup").style.display = "none";
     $("loading").style.display = "flex";
     f.onload = () => {
       clearTimeout(slowT);
-      if (editingLink) return;
       $("loading").style.display = "none";
       f.style.display = "block";
     };
-    f.src = u;
-    const slowT = setTimeout(() => { $("slow").style.display = "block"; $("chg").style.display = "inline-block"; }, 12000);
+    $("slow").style.display = "none";
+    const slowT = setTimeout(() => { $("slow").style.display = "block"; }, 12000);
+    f.src = DEFAULT_APP_URL;
   }
 
   // ── Hauteur des bandeaux : l'application s'affiche en dessous ──
@@ -167,10 +113,11 @@
   // ── Installation : le bandeau reste tant que l'app n'est pas installée ──
   const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isAndroid = /android/i.test(navigator.userAgent);
   let deferred = null;
   if (!standalone) {
     addEventListener("beforeinstallprompt", e => { e.preventDefault(); deferred = e; showBar("installBar", true); });
-    if (isIOS) showBar("installBar", true);
+    if (isIOS || isAndroid) showBar("installBar", true);
   }
   addEventListener("appinstalled", () => { deferred = null; showBar("installBar", false); });
   $("installBtn").onclick = async () => {
@@ -180,12 +127,14 @@
     }
     $("sheetSteps").innerHTML = isIOS
       ? "<li>Touchez le bouton <b>Partager</b> (carré avec une flèche) dans Safari.</li><li>Choisissez <b>Sur l'écran d'accueil</b>.</li><li>Touchez <b>Ajouter</b>.</li>"
+      : isAndroid
+      ? "<li>Ouvrez cette page dans Chrome à jour.</li><li>Dans le menu <b>⋮</b>, choisissez <b>Installer et créer un raccourci</b> ou <b>Ajouter à l’écran d’accueil</b>.</li><li>Choisissez <b>Installer</b>. Si l’installation est indisponible ou bloquée, choisissez <b>Créer un raccourci</b> si Chrome le propose.</li>"
       : "<li>Ouvrez le menu du navigateur (<b>⋮</b> ou l'icône d'installation dans la barre d'adresse).</li><li>Choisissez <b>Installer l'application</b>.</li><li>Confirmez avec <b>Installer</b>.</li>";
     $("sheet").style.display = "flex";
   };
   $("sheetClose").onclick = () => { $("sheet").style.display = "none"; };
 
-  const LOADED_VERSION = "20261118-3";
+  const LOADED_VERSION = "20261118-6";
   const worker = navigator.serviceWorker;
   const registration = worker ? worker.register("sw.js", { updateViaCache: "none" }).catch(() => null) : Promise.resolve(null);
   let checking = false;
