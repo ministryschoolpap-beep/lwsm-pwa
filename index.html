@@ -42,6 +42,14 @@
 </head>
 <body>
 <div id="bars">
+  <div id="connectionBar" class="bar" style="display:flex;justify-content:flex-end;gap:8px">
+    <nav aria-label="Accès LWSM" style="display:flex;gap:8px;margin-right:auto">
+      <strong aria-current="page">Administration</strong>
+      <a href="./student/" style="color:inherit">Portail étudiant</a>
+    </nav>
+    <button id="changeLink" type="button">Changer le lien</button>
+    <a id="openDirect" target="_blank" rel="noopener noreferrer" style="color:inherit">Ouvrir dans le navigateur</a>
+  </div>
   <div id="offline" class="bar">📴 Hors ligne — reconnexion en cours…</div>
   <div id="updateBar" class="bar"><span>🔄 Une nouvelle version est disponible.</span><button id="updateBtn">Mettre à jour</button></div>
   <div id="installBar" class="bar"><span>📲 Installez <b>LWSM</b> sur cet appareil.</span><button id="installBtn">Installer</button></div>
@@ -58,8 +66,15 @@
   <h1>LWSM</h1>
   <p>Collez le lien de votre application web Apps Script (celui qui se termine par <b>/exec</b>). Il sera mémorisé sur cet appareil.</p>
   <input id="urlIn" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off">
-  <div id="err"></div>
+  <div id="err" role="status"></div>
   <button onclick="saveUrl()">Enregistrer et ouvrir</button>
+</div>
+
+<div id="offlineScreen" class="screen" style="display:none">
+  <img src="icons/icon-192.png?v=4" alt="">
+  <h1>Vous êtes hors ligne</h1>
+  <p>Le portail se rouvrira dès que la connexion sera rétablie.</p>
+  <button id="retryConnection" class="ghost">Réessayer</button>
 </div>
 
 <div id="loading" class="screen" style="display:none">
@@ -80,27 +95,51 @@
   const $ = id => document.getElementById(id);
 
   function getUrl() { try { return localStorage.getItem(KEY) || DEFAULT_APP_URL; } catch (e) { return DEFAULT_APP_URL; } }
-  function normalize(u) {
-    u = String(u || "").trim();
-    if (!/^https:\/\/script\.google\.com\/.+\/exec/.test(u) && !/^https:\/\/script\.google\.com\/a\/macros\/.+\/exec/.test(u)) return "";
-    if (ADD_PAGE && !/[?&]page=/.test(u)) u += (u.indexOf("?") === -1 ? "?" : "&") + "page=" + ADD_PAGE;
-    return u;
+  function normalize(value) {
+    try {
+      const url = new URL(String(value || "").trim());
+      if (url.origin !== "https://script.google.com" || url.username || url.password || !/\/macros\/s\/[^/]+\/exec\/?$/.test(url.pathname)) return "";
+      if (ADD_PAGE && !url.searchParams.has("page")) url.searchParams.set("page", ADD_PAGE);
+      return url.href;
+    } catch (error) { return ""; }
   }
+  let editingLink = false;
   function saveUrl() {
-    const u = normalize($("urlIn").value);
-    if (!u) { $("err").innerText = "Lien invalide : il doit commencer par https://script.google.com/ et finir par /exec"; return; }
-    try { localStorage.setItem(KEY, u); } catch (e) {}
+    const url = normalize($("urlIn").value);
+    if (!url) { $("err").innerText = "Collez l’URL HTTPS du déploiement Apps Script qui se termine par /exec."; return; }
+    try { localStorage.setItem(KEY, url); } catch (error) { $("err").innerText = "Impossible de mémoriser le lien sur cet appareil."; return; }
+    editingLink = false;
     start();
   }
-  function changeUrl() { try { localStorage.removeItem(KEY); } catch (e) {} location.reload(); }
+  function changeUrl() {
+    editingLink = true;
+    $("loading").style.display = "none";
+    $("offlineScreen").style.display = "none";
+    $("app").style.display = "none";
+    $("setup").style.display = "flex";
+    $("urlIn").value = getUrl();
+    $("err").innerText = "";
+    $("urlIn").focus();
+  }
+  $("changeLink").onclick = changeUrl;
 
   function start() {
-    const u = getUrl();
+    if (editingLink) return;
+    const f = $("app");
+    const u = normalize(getUrl());
+    $("openDirect").hidden = !u;
+    if (u) $("openDirect").href = u;
+    $("offlineScreen").style.display = navigator.onLine || f.style.display === "block" ? "none" : "flex";
+    if (!navigator.onLine) { $("loading").style.display = "none"; return; }
     if (!u) { $("setup").style.display = "flex"; $("loading").style.display = "none"; return; }
     $("setup").style.display = "none";
     $("loading").style.display = "flex";
-    const f = $("app");
-    f.onload = () => { $("loading").style.display = "none"; f.style.display = "block"; clearTimeout(slowT); };
+    f.onload = () => {
+      clearTimeout(slowT);
+      if (editingLink) return;
+      $("loading").style.display = "none";
+      f.style.display = "block";
+    };
     f.src = u;
     const slowT = setTimeout(() => { $("slow").style.display = "block"; $("chg").style.display = "inline-block"; }, 12000);
   }
@@ -108,7 +147,7 @@
   // ── Hauteur des bandeaux : l'application s'affiche en dessous ──
   function measureBars() {
     const h = $("bars").offsetHeight;
-    const anyBar = ["offline", "updateBar", "installBar"].some(id => $(id).style.display === "flex");
+    const anyBar = ["connectionBar", "offline", "updateBar", "installBar"].some(id => $(id).style.display === "flex");
     document.documentElement.style.setProperty("--bar-h", anyBar ? h + "px" : "0px");
     document.documentElement.style.setProperty("--app-pad", anyBar ? "0px" : "env(safe-area-inset-top)");
   }
@@ -116,9 +155,14 @@
   if ("ResizeObserver" in window) new ResizeObserver(measureBars).observe($("bars"));
 
   // ── Hors-ligne ──
-  function net() { showBar("offline", !navigator.onLine); }
-  addEventListener("online", () => { net(); if ($("app").style.display !== "block") start(); });
-  addEventListener("offline", net); net();
+  function net() {
+    showBar("offline", !navigator.onLine);
+    if ($("app").style.display !== "block") start();
+  }
+  addEventListener("online", net);
+  addEventListener("offline", net);
+  $("retryConnection").onclick = start;
+  showBar("offline", !navigator.onLine);
 
   // ── Installation : le bandeau reste tant que l'app n'est pas installée ──
   const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
@@ -141,35 +185,46 @@
   };
   $("sheetClose").onclick = () => { $("sheet").style.display = "none"; };
 
-  // ── Mise à jour : détection dynamique via version.json (fonctionne aussi dans le navigateur, sans installation) ──
-  // Le bandeau n'apparaît que si la version publiée est différente de celle chargée sur cet appareil.
-  let loadedVersion = null, checking = false;
-  async function remoteVersion() {
-    try {
-      const r = await fetch("version.json?t=" + Date.now(), { cache: "no-store" });
-      if (!r.ok) return null;
-      const j = await r.json();
-      return j && j.version ? String(j.version) : null;
-    } catch (e) { return null; }
-  }
+  const LOADED_VERSION = "20261118-3";
+  const worker = navigator.serviceWorker;
+  const registration = worker ? worker.register("sw.js", { updateViaCache: "none" }).catch(() => null) : Promise.resolve(null);
+  let checking = false;
   async function checkVersion() {
     if (checking || !navigator.onLine) return;
-    checking = true; const v = await remoteVersion(); checking = false;
-    if (!v) return;
-    if (loadedVersion === null) { loadedVersion = v; return; }   // 1re lecture = version chargée
-    showBar("updateBar", v !== loadedVersion);
+    checking = true;
+    try {
+      const response = await fetch("version.json?t=" + Date.now(), { cache: "no-store" });
+      if (response.ok) {
+        const { version } = await response.json();
+        if (version) showBar("updateBar", String(version) !== LOADED_VERSION);
+      }
+    } catch (error) { /* A later check can retry. */ }
+    finally { checking = false; }
   }
+  let reloadRequested = false;
+  if (worker) worker.addEventListener("controllerchange", () => {
+    if (reloadRequested) location.replace(location.pathname + "?u=" + Date.now());
+  });
   $("updateBtn").onclick = async () => {
-    $("updateBtn").disabled = true; $("updateBtn").innerText = "Mise à jour…";
-    try { const rs = await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r => r.unregister())); } catch (e) {}
-    try { const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); } catch (e) {}
-    location.href = location.pathname + "?u=" + Date.now();
+    if (!navigator.onLine || reloadRequested) return;
+    reloadRequested = true;
+    $("updateBtn").disabled = true;
+    const reg = await registration;
+    if (reg) {
+      try { await reg.update(); } catch (error) {}
+      if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
+    }
+    if (!reg || (!reg.installing && !reg.waiting)) location.replace(location.pathname + "?u=" + Date.now());
+    else setTimeout(() => {
+      reloadRequested = false;
+      $("updateBtn").disabled = false;
+      checkVersion();
+    }, 10000);
   };
   checkVersion();
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkVersion(); });
   addEventListener("online", checkVersion);
   setInterval(checkVersion, 5 * 60 * 1000);
-  if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
 
   // ── Navigation demandée par la page Apps Script (ex. connexion admin) : on reste dans le cadre, en plein écran ──
   addEventListener("message", ev => {
