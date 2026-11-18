@@ -89,12 +89,19 @@
   allowfullscreen></iframe>
 
 <script>
-  const DEFAULT_APP_URL = "https://script.google.com/macros/s/AKfycbynTqujp5Pl2TyCd0WN1P5KI4e0liz4gvXsDkwe0H8Rtd5hsMGWTAYPbWC88H_vq3Xv/exec";
+  const DEFAULT_APP_URL = "https://script.google.com/macros/s/AKfycbzQR5wqe6-uBbmbf9t0fD3Nx2761iWk6bjO4CDjNBHL5Vw28Z6TKPLYZvX0TKZbKe6B/exec";
+  const PREVIOUS_DEFAULT_APP_URL = "https://script.google.com/macros/s/AKfycbynTqujp5Pl2TyCd0WN1P5KI4e0liz4gvXsDkwe0H8Rtd5hsMGWTAYPbWC88H_vq3Xv/exec";
   const KEY = "lwsm_student_url";
   const ADD_PAGE = "";          // "admin" pour la console admin ; vide = lien tel quel
   const $ = id => document.getElementById(id);
 
-  function getUrl() { try { return localStorage.getItem(KEY) || DEFAULT_APP_URL; } catch (e) { return DEFAULT_APP_URL; } }
+  function getUrl() {
+    try {
+      const saved = localStorage.getItem(KEY);
+      if (!saved || saved.trim().replace(/\/$/, "") === PREVIOUS_DEFAULT_APP_URL) return DEFAULT_APP_URL;
+      return saved;
+    } catch (error) { return DEFAULT_APP_URL; }
+  }
   function normalize(value) {
     try {
       const url = new URL(String(value || "").trim());
@@ -185,7 +192,7 @@
   };
   $("sheetClose").onclick = () => { $("sheet").style.display = "none"; };
 
-  const LOADED_VERSION = "20261118-3";
+  const LOADED_VERSION = "20261118-4";
   const worker = navigator.serviceWorker;
   const registration = worker ? worker.register("sw.js", { updateViaCache: "none" }).catch(() => null) : Promise.resolve(null);
   let checking = false;
