@@ -23,6 +23,11 @@
   button{padding:13px 22px;border:0;border-radius:12px;background:#fdf3c0;color:#14264f;font-weight:700;font-size:15px;cursor:pointer}
   .ghost{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.5)}
   #loading{z-index:3}
+  #offlineScreen{z-index:4;overflow:auto;display:none;align-items:center;justify-content:normal;padding-top:72px}
+  #offlineHomework{width:min(100%,520px);text-align:left;margin:0;padding:0;list-style:none}
+  #offlineHomework fieldset{margin:12px 0;border:1px solid #ffffff55;border-radius:8px;min-width:0}
+  #offlineHomework label{display:block;padding:8px 0}
+  #offlineHomework li{padding:10px 12px;margin-bottom:8px;border-radius:8px;background:#ffffff19;overflow-wrap:anywhere}
   /* bandeaux (hors-ligne / installation / mise à jour) */
   #bars{position:fixed;left:0;right:0;top:0;z-index:10;padding-top:env(safe-area-inset-top);background:#14264f}
   .bar{display:none;align-items:center;justify-content:center;gap:12px;padding:8px 12px;font-size:13px;line-height:1.3;text-align:left}
@@ -40,7 +45,7 @@
 </head>
 <body>
 <div id="bars">
-  <div id="offline" class="bar">📴 Hors ligne — reconnexion en cours…</div>
+  <div id="offline" class="bar">📴 Hors ligne <button id="browseOffline" type="button">Devoirs hors ligne</button></div>
   <div id="updateBar" class="bar"><span>🔄 Une nouvelle version est disponible.</span><button id="updateBtn">Mettre à jour</button></div>
   <div id="installBar" class="bar"><span>📲 Installez <b>Portail Etudiant LWSM</b> sur cet appareil.</span><button id="installBtn">Installer</button></div>
 </div>
@@ -54,7 +59,8 @@
 <div id="offlineScreen" class="screen" style="display:none">
   <img src="icons/icon-192.png?v=4" alt="">
   <h1>Vous êtes hors ligne</h1>
-  <p>Le portail se rouvrira dès que la connexion sera rétablie.</p>
+  <p id="offlineHomeworkNote">Les devoirs consultés en ligne apparaîtront ici.</p>
+  <ul id="offlineHomework" aria-label="Devoirs enregistrés"></ul>
   <button id="retryConnection" class="ghost">Réessayer</button>
 </div>
 
@@ -72,10 +78,185 @@
   const DEFAULT_APP_URL = "https://script.google.com/macros/s/AKfycbzQR5wqe6-uBbmbf9t0fD3Nx2761iWk6bjO4CDjNBHL5Vw28Z6TKPLYZvX0TKZbKe6B/exec";
   const $ = id => document.getElementById(id);
 
+
+
+  const offlineKey = "lwsm-student-offline-homework";
+  const taskKey = account => "lwsm-offline-tasks:" + account;
+  let portalFrame = null;
+  let syncing = null;
+
+  function readLocal(key) {
+    try { return JSON.parse(localStorage.getItem(key) || "null"); } catch (error) { return null; }
+  }
+
+  function tasksFor(account) {
+    const tasks = readLocal(taskKey(account));
+    return Array.isArray(tasks) ? tasks : [];
+  }
+
+  function saveTasks(account, tasks) {
+    try { localStorage.setItem(taskKey(account), JSON.stringify(tasks)); return true; }
+    catch (error) { return false; }
+  }
+
+  function syncOfflineHomework() {
+    if (!navigator.onLine || !portalFrame || syncing) return;
+    const { account, source, origin } = portalFrame;
+    const task = tasksFor(account).find(item => item.queued && !item.error);
+    if (!task) return;
+    const id = task.submissionId;
+    const timer = setTimeout(() => { if (syncing && syncing.id === id) syncing = null; }, 30000);
+    syncing = { id, account, timer };
+    source.postMessage({ type: "lwsm-sync-homework", account, attempt: {
+      title: task.title, version: task.version, answers: task.answers, submissionId: id
+    } }, origin);
+  }
+
+  function textNode(tag, text) {
+    const node = document.createElement(tag);
+    node.textContent = text;
+    return node;
+  }
+
+  function renderOfflineHomework() {
+    const list = $("offlineHomework");
+    list.replaceChildren();
+    const snapshot = readLocal(offlineKey);
+    if (!snapshot || !Array.isArray(snapshot.homework)) {
+      $("offlineHomeworkNote").textContent = "Ouvrez un devoir en ligne une fois pour le rendre disponible hors ligne.";
+      return;
+    }
+    $("offlineHomeworkNote").textContent = "Ouvrez un devoir déjà chargé. Vos réponses seront envoyées après reconnexion au même compte.";
+    const tasks = tasksFor(snapshot.account);
+    const shown = new Set();
+    function add(title, dueDate, task) {
+      const item = textNode("li", title + (dueDate ? " · Échéance : " + dueDate : ""));
+      if (task) {
+        shown.add(task.title);
+        if (task.error) item.append(textNode("p", task.error));
+        else if (task.queued) item.append(textNode("p", "Réponses en attente de synchronisation."));
+        else if (task.sent) item.append(textNode("p", "Réponses synchronisées."));
+        else {
+          const open = textNode("button", "Ouvrir");
+          open.onclick = () => openOfflineHomework(snapshot.account, task);
+          item.append(" ", open);
+        }
+      } else item.append(textNode("p", "À charger en ligne."));
+      list.append(item);
+    }
+    snapshot.homework.forEach(item => add(item.title, item.dueDate, tasks.find(task => task.title === item.title)));
+    tasks.filter(task => !shown.has(task.title)).forEach(task => add(task.title, "", task));
+  }
+
+  function openOfflineHomework(account, task) {
+    const list = $("offlineHomework");
+    list.replaceChildren();
+    const container = textNode("li", "");
+    const back = textNode("button", "Retour aux devoirs");
+    back.onclick = renderOfflineHomework;
+    const form = document.createElement("form");
+    const answers = task.answers.slice();
+    const message = textNode("p", "");
+    message.setAttribute("role", "status");
+    function save(queued) {
+      const tasks = tasksFor(account);
+      const index = tasks.findIndex(item => item.submissionId === task.submissionId);
+      if (index === -1 || tasks[index].queued || tasks[index].sent) return false;
+      tasks[index] = { ...tasks[index], answers, queued };
+      return saveTasks(account, tasks);
+    }
+    container.append(back, textNode("h2", task.title), form, message);
+    task.questions.forEach((question, i) => {
+      const field = document.createElement("fieldset");
+      field.append(textNode("legend", (i + 1) + ". " + question.question));
+      question.options.forEach((option, j) => {
+        const label = document.createElement("label");
+        const input = document.createElement("input");
+        input.type = "radio";
+        input.name = "q" + i;
+        input.required = true;
+        input.checked = answers[i] === j;
+        input.onchange = () => {
+          answers[i] = j;
+          message.textContent = save(false) ? "" : "Impossible d’enregistrer ce brouillon sur cet appareil.";
+        };
+        label.append(input, " ", option);
+        field.append(label);
+      });
+      form.append(field);
+    });
+    form.append(textNode("button", "Envoyer à la reconnexion"));
+    form.onsubmit = event => {
+      event.preventDefault();
+      if (!save(true)) { message.textContent = "Impossible d’enregistrer les réponses sur cet appareil."; return; }
+      renderOfflineHomework();
+      syncOfflineHomework();
+    };
+    list.append(container);
+  }
+
+  function fromPortalFrame(source) {
+    const frame = $("app").contentWindow;
+    for (let level = 0; source && level < 8; level++) {
+      if (source === frame) return true;
+      if (source === window) return false;
+      try {
+        const parent = source.parent;
+        if (parent === source) return false;
+        source = parent;
+      } catch (error) { return false; }
+    }
+    return false;
+  }
+
+  addEventListener("message", event => {
+    if (!/^https:\/\/(?:script\.google\.com|[a-z0-9-]+-script\.googleusercontent\.com|script\.googleusercontent\.com)$/.test(event.origin)) return;
+    const data = event.data;
+    if (!fromPortalFrame(event.source) || !data) return;
+    if (data.type === "lwsm-offline-homework" && data.homework === null) {
+      portalFrame = null;
+      if (syncing) { clearTimeout(syncing.timer); syncing = null; }
+      try { localStorage.removeItem(offlineKey); } catch (error) {}
+      $("offlineHomework").replaceChildren();
+      return;
+    }
+    if (typeof data.account !== "string" || !/^s[a-z0-9]{8,40}$/i.test(data.account)) return;
+    const account = data.account;
+    if (data.type === "lwsm-offline-homework" && Array.isArray(data.homework)) {
+      const homework = data.homework.slice(0,150).filter(item => item && typeof item.title === "string" && typeof item.dueDate === "string")
+        .map(item => ({ title:item.title.slice(0,250), dueDate:item.dueDate.slice(0,60) }));
+      try { localStorage.setItem(offlineKey, JSON.stringify({ account, homework })); } catch (error) {}
+      portalFrame = { source:event.source, origin:event.origin, account };
+      syncOfflineHomework();
+    } else if (data.type === "lwsm-offline-lesson" && portalFrame && portalFrame.source === event.source && portalFrame.account === account) {
+      if (typeof data.title !== "string" || typeof data.version !== "string" || !Array.isArray(data.questions) || data.questions.length !== 30) return;
+      if (!data.questions.every(q => q && typeof q.question === "string" && Array.isArray(q.options) &&
+        q.options.length >= 2 && q.options.length <= 4 && q.options.every(option => typeof option === "string"))) return;
+      const tasks = tasksFor(account);
+      const existing = tasks.find(task => task.title === data.title);
+      if (existing && (existing.queued || existing.version === data.version)) return;
+      const submissionId = "offline-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
+      const questions = data.questions.map(q => ({ question:q.question, options:q.options }));
+      saveTasks(account, tasks.filter(task => task !== existing).concat({
+        title:data.title, version:data.version, questions, answers:Array(questions.length).fill(null), submissionId
+      }));
+    } else if (data.type === "lwsm-sync-result" && syncing && syncing.account === account && syncing.id === data.id) {
+      clearTimeout(syncing.timer);
+      syncing = null;
+      const result = data.result;
+      if (result && (result.ok || ["QUESTIONS_CHANGED","BAD_ANSWERS","CLOSED","WRONG_PROMOTION","NO_QUESTIONS"].includes(result.code))) {
+        const tasks = tasksFor(account).map(task => task.submissionId !== data.id ? task :
+          result.ok ? { ...task, queued:false, sent:true } : { ...task, error:result.message || "Le devoir est indisponible. Vos réponses sont conservées." });
+        if (saveTasks(account, tasks)) syncOfflineHomework();
+      }
+    }
+    if (!navigator.onLine && $("offlineScreen").style.display === "flex") renderOfflineHomework();
+  });
+
   function start() {
     const f = $("app");
     $("offlineScreen").style.display = navigator.onLine || f.style.display === "block" ? "none" : "flex";
-    if (!navigator.onLine) { $("loading").style.display = "none"; return; }
+    if (!navigator.onLine) { $("loading").style.display = "none"; renderOfflineHomework(); return; }
     $("loading").style.display = "flex";
     f.onload = () => {
       clearTimeout(slowT);
@@ -102,8 +283,17 @@
     showBar("offline", !navigator.onLine);
     if ($("app").style.display !== "block") start();
   }
-  addEventListener("online", net);
+  addEventListener("online", () => {
+    $("offlineScreen").style.display = "none";
+    net();
+    syncOfflineHomework();
+  });
   addEventListener("offline", net);
+  $("browseOffline").onclick = () => {
+    $("offlineScreen").style.display = "flex";
+    $("loading").style.display = "none";
+    renderOfflineHomework();
+  };
   $("retryConnection").onclick = start;
   showBar("offline", !navigator.onLine);
 
@@ -131,7 +321,7 @@
   };
   $("sheetClose").onclick = () => { $("sheet").style.display = "none"; };
 
-  const LOADED_VERSION = "20261118-6";
+  const LOADED_VERSION = "20261118-7";
   const worker = navigator.serviceWorker;
   const registration = worker ? worker.register("sw.js", { updateViaCache: "none" }).catch(() => null) : Promise.resolve(null);
   let checking = false;

@@ -3,7 +3,7 @@
   "name": "Portail Etudiant LWSM",
   "short_name": "Portail LWSM",
   "description": "Portail étudiant — Living Word School of Ministry",
-  "start_url": "./index.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",

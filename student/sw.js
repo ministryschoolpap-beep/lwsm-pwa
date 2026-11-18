@@ -1,5 +1,5 @@
 const PREFIX = "lwsm-student-";
-const CACHE = PREFIX + "20261118-6";
+const CACHE = PREFIX + "20261118-7";
 const BASE = new URL(self.registration.scope);
 const SHELL = ["index.html","manifest.webmanifest","icons/icon-192.png","icons/icon-512.png","icons/maskable-512.png","icons/apple-touch-icon.png"];
 const urls = new Map(SHELL.map(path => [new URL(path, BASE).pathname, new URL(path, BASE).href]));
@@ -8,7 +8,10 @@ const index = new URL("index.html", BASE).href;
 self.addEventListener("install", event => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE);
-    await cache.addAll(SHELL.map(path => new Request(new URL(path, BASE), { cache: "reload" })));
+    const shell = await fetch(BASE.href, { cache: "reload" });
+    if (!shell.ok) throw new Error("Unable to cache the student launcher");
+    await cache.put(index, shell);
+    await cache.addAll(SHELL.filter(path => path !== "index.html").map(path => new Request(new URL(path, BASE), { cache: "reload" })));
     await self.skipWaiting();
   })());
 });
@@ -33,7 +36,7 @@ self.addEventListener("fetch", event => {
     const cache = await caches.open(CACHE);
     let response;
     try {
-      response = await fetch(request, { cache: "no-store" });
+      response = await fetch(key === index ? BASE.href : request, { cache: "no-store" });
       if (response.ok && !response.redirected) {
         try { await cache.put(key, response.clone()); } catch (error) {}
         return response;
