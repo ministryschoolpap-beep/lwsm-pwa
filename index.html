@@ -40,9 +40,6 @@
 </head>
 <body>
 <div id="bars">
-  <div id="connectionBar" class="bar" style="display:flex;justify-content:flex-end;gap:8px">
-    <a href="./student/" style="color:inherit">Portail étudiant</a>
-  </div>
   <div id="offline" class="bar">📴 Hors ligne — reconnexion en cours…</div>
   <div id="updateBar" class="bar"><span>🔄 Une nouvelle version est disponible.</span><button id="updateBtn">Mettre à jour</button></div>
   <div id="installBar" class="bar"><span>📲 Installez <b>LWSM</b> sur cet appareil.</span><button id="installBtn">Installer</button></div>
@@ -93,7 +90,7 @@
   // ── Hauteur des bandeaux : l'application s'affiche en dessous ──
   function measureBars() {
     const h = $("bars").offsetHeight;
-    const anyBar = ["connectionBar", "offline", "updateBar", "installBar"].some(id => $(id).style.display === "flex");
+    const anyBar = ["offline", "updateBar", "installBar"].some(id => $(id).style.display === "flex");
     document.documentElement.style.setProperty("--bar-h", anyBar ? h + "px" : "0px");
     document.documentElement.style.setProperty("--app-pad", anyBar ? "0px" : "env(safe-area-inset-top)");
   }
@@ -134,7 +131,7 @@
   };
   $("sheetClose").onclick = () => { $("sheet").style.display = "none"; };
 
-  const LOADED_VERSION = "20261122-2";
+  const LOADED_VERSION = "20261122-3";
   const worker = navigator.serviceWorker;
   const registration = worker ? worker.register("sw.js", { updateViaCache: "none" }).catch(() => null) : Promise.resolve(null);
   let checking = false;

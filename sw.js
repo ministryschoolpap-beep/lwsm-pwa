@@ -1,5 +1,5 @@
 const PREFIX = "lwsm-shell-";
-const CACHE = PREFIX + "20261122-2";
+const CACHE = PREFIX + "20261122-3";
 const BASE = new URL(self.registration.scope);
 const SHELL = ["manifest.webmanifest","icons/icon-192.png","icons/icon-512.png","icons/maskable-512.png","icons/apple-touch-icon.png"];
 const urls = new Map(SHELL.map(path => [new URL(path, BASE).pathname, new URL(path, BASE).href]));
