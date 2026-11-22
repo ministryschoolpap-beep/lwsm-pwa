@@ -1,17 +1,16 @@
 const PREFIX = "lwsm-student-";
-const CACHE = PREFIX + "20261118-7";
+const CACHE = PREFIX + "20261122-2";
 const BASE = new URL(self.registration.scope);
-const SHELL = ["index.html","manifest.webmanifest","icons/icon-192.png","icons/icon-512.png","icons/maskable-512.png","icons/apple-touch-icon.png"];
+const SHELL = ["manifest.webmanifest","icons/icon-192.png","icons/icon-512.png","icons/maskable-512.png","icons/apple-touch-icon.png"];
 const urls = new Map(SHELL.map(path => [new URL(path, BASE).pathname, new URL(path, BASE).href]));
-const index = new URL("index.html", BASE).href;
+const index = BASE.href;
+const indexPath = new URL("index.html", BASE).pathname;
 
 self.addEventListener("install", event => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE);
-    const shell = await fetch(BASE.href, { cache: "reload" });
-    if (!shell.ok) throw new Error("Unable to cache the student launcher");
-    await cache.put(index, shell);
-    await cache.addAll(SHELL.filter(path => path !== "index.html").map(path => new Request(new URL(path, BASE), { cache: "reload" })));
+    await cache.add(new Request(index, { cache: "reload" }));
+    await Promise.allSettled(SHELL.map(path => cache.add(new Request(new URL(path, BASE), { cache: "reload" }))));
     await self.skipWaiting();
   })());
 });
@@ -30,7 +29,7 @@ self.addEventListener("fetch", event => {
   const request = event.request;
   const url = new URL(request.url);
   if (request.method !== "GET" || url.origin !== BASE.origin) return;
-  const key = url.pathname === BASE.pathname ? index : urls.get(url.pathname);
+  const key = (url.pathname === BASE.pathname || url.pathname === indexPath) ? index : urls.get(url.pathname);
   if (!key) return;
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);

@@ -321,7 +321,7 @@
   };
   $("sheetClose").onclick = () => { $("sheet").style.display = "none"; };
 
-  const LOADED_VERSION = "20261118-7";
+  const LOADED_VERSION = "20261122-2";
   const worker = navigator.serviceWorker;
   const registration = worker ? worker.register("sw.js", { updateViaCache: "none" }).catch(() => null) : Promise.resolve(null);
   let checking = false;
